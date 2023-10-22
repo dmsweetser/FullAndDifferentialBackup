@@ -4,7 +4,7 @@ $backupLocation = "H:\Backups"  # Updated target location for backups
 $backupFrequency = 7  # Days between full backups
 
 # Create a unique backup folder based on the current date
-$backupFolder = Join-Path -Path $backupLocation -ChildPath (Get-Date -Format "yyyyMMddHHmmss")
+$backupFolder = Join-Path -Path $backupLocation -ChildPath (Get-Date -Format "yyyyMMdd")
 New-Item -ItemType Directory -Path $backupFolder -Force
 
 # Function to create the 'FullBackup' folder and perform a full backup
