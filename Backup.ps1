@@ -23,11 +23,11 @@ function DifferentialBackup {
 
 # Function to clean up old backups when disk space is low
 function CleanUpBackups {
-    $backups = Get-ChildItem -Path $backupLocation | Sort-Object CreationTime
-    while ((Get-PSDrive -PSProvider FileSystem).Free -lt 1gb) {
+    $backupDrive = [System.IO.Path]::GetPathRoot($backupLocation)
+    while ((Get-PSDrive -Name $backupDrive).Free -lt 1gb) {
+        $backups = Get-ChildItem -Path $backupLocation | Sort-Object CreationTime
         $oldestBackup = $backups[0]
         Remove-Item -Path $oldestBackup.FullName -Recurse -Force
-        $backups = $backups | Where-Object { $_ -ne $oldestBackup }
     }
 }
 
