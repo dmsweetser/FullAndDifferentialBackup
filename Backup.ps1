@@ -1,5 +1,5 @@
 ﻿# Configuration
-$sourceDirectories = @("C:\Files1", "C:\Files2")  # List of source directories to back up
+$sourceDirectories = @("C:\Files", "C:\Users\Daniel")  # List of source directories to back up
 $backupLocation = "H:\Backups"  # Updated target location for backups
 $backupFrequency = 7  # Days between full backups
 
