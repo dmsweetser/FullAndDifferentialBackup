@@ -1,5 +1,5 @@
 ﻿# Configuration
-$sourceDirectories = @("C:\Files", "C:\Users\Daniel")  # List of source directories to back up
+$sourceDirectories = @("C:\Files1", "C:\Files2")  # List of source directories to back up
 $backupLocation = "H:\Backups"  # Updated target location for backups
 $backupFrequency = 7  # Days between full backups
 
@@ -23,7 +23,7 @@ function DifferentialBackup {
 
 # Function to clean up old backups when disk space is low
 function CleanUpBackups {
-    $backupDrive = [System.IO.Path]::GetPathRoot($backupLocation)
+    $backupDrive = [System.IO.Path]::GetPathRoot($backupLocation).TrimEnd('\').TrimEnd(':')
     while ((Get-PSDrive -Name $backupDrive).Free -lt 1gb) {
         $backups = Get-ChildItem -Path $backupLocation | Sort-Object CreationTime
         $oldestBackup = $backups[0]
