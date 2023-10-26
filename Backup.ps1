@@ -15,25 +15,54 @@ function FullBackup {
 function DifferentialBackup {
     $fullBackups = Get-ChildItem -Path $backupLocation -Filter "*_Full" | Sort-Object CreationTime
     $lastFullBackup = $fullBackups | Select-Object -Last 1
+
     if ($lastFullBackup -ne $null) {
+        $lastFullBackupPath = $lastFullBackup.FullName
+        $lastFullBackupTime = $lastFullBackup.CreationTime
         $diffBackupFolder = Join-Path -Path $backupLocation -ChildPath ((Get-Date -Format "yyyyMMdd_HHmmss") + "_Diff")
         New-Item -ItemType Directory -Path $diffBackupFolder -Force
-        $differentialItems = Compare-Object -ReferenceObject (Get-ChildItem -Path $sourceDirectories -File) -DifferenceObject (Get-ChildItem -Path $lastFullBackup.FullName -File)
-        $differentialItems | ForEach-Object {
-            $sourcePath = $_.InputObject.FullName
-            $relativePath = $sourcePath.Substring($sourcePath.IndexOf($lastFullBackup.FullName) + $lastFullBackup.FullName.Length + 1)
-            $destinationPath = Join-Path -Path $diffBackupFolder -ChildPath $relativePath
-            Copy-Item -Path $sourcePath -Destination $destinationPath
-        }
-    }
-}
 
-# Function to clean up old backups if they exceed the maximum number of full backups
-function CleanUpBackups {
-    $fullBackups = Get-ChildItem -Path $backupLocation -Filter "*_Full" | Sort-Object CreationTime
-    $excessFullBackups = $fullBackups | Select-Object -Skip $maxFullBackups
-    $excessFullBackups | ForEach-Object {
-        Remove-Item -Path $_.FullName -Recurse -Force
+        $sourceFiles = Get-ChildItem -Path $sourceDirectories -File -Recurse
+        $lastFullBackupFiles = Get-ChildItem -Path $lastFullBackupPath -File -Recurse
+
+        if ($sourceFiles -ne $null -and $lastFullBackupFiles -ne $null) {
+            $sourceFileHash = @{}
+            $lastFullBackupFileHash = @{}
+
+            # Create a hash table of source files
+            foreach ($file in $sourceFiles) {
+                $relativePath = $file.FullName.Substring((Get-Item -Path $sourceDirectories[0]).FullName.Length)
+                $sourceFileHash[$relativePath] = $file
+            }
+
+            # Create a hash table of last full backup files
+            foreach ($file in $lastFullBackupFiles) {
+                $relativePath = $file.FullName.Substring($lastFullBackupPath.Length)
+                $lastFullBackupFileHash[$relativePath] = $file.LastWriteTime
+            }
+
+            foreach ($relativePath in $sourceFileHash.Keys) {
+                if ($lastFullBackupFileHash.ContainsKey($relativePath)) {
+                    $sourceFile = $sourceFileHash[$relativePath]
+                    $lastModifiedTime = $sourceFile.LastWriteTime
+
+                    # Compare the last modification time with the full backup time
+                    if ($lastModifiedTime -gt $lastFullBackupTime) {
+                        $destinationPath = Join-Path -Path $diffBackupFolder -ChildPath $relativePath
+                        $destinationDirectory = [System.IO.Path]::GetDirectoryName($destinationPath)
+                        if (-not (Test-Path -Path $destinationDirectory)) {
+                            New-Item -ItemType Directory -Path $destinationDirectory -Force
+                        }
+
+                        Copy-Item -Path $sourceFile.FullName -Destination $destinationPath -ErrorAction Stop
+                    }
+                }
+            }
+        } else {
+            Write-Host "Source files or last full backup files are null."
+        }
+    } else {
+        Write-Host "No full backup found. Cannot perform a differential backup."
     }
 }
 
@@ -44,7 +73,9 @@ if ($lastFullBackup -eq $null) {
     FullBackup
 } else {
     $lastFullBackupTime = $lastFullBackup.CreationTime
-    $daysSinceLastFullBackup = [math]::Round((Get-Date - $lastFullBackupTime).TotalDays)  # Calculate the days difference
+    $currentDateTime = Get-Date
+    $daysSinceLastFullBackup = [math]::Round(($currentDateTime - $lastFullBackupTime).TotalDays)
+
     if ($daysSinceLastFullBackup -ge $backupFrequency) {
         FullBackup
         CleanUpBackups
