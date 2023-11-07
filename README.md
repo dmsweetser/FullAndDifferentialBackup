@@ -1,26 +1,19 @@
-# PowerShell Backup
+# PowerShell Backup Script
 
-## Overview
-This PowerShell script is designed to create and manage backups of specified source directories. It provides options for full and differential backups, ensuring your data is secure and retrievable. Additionally, it includes a cleanup mechanism to manage disk space when it's running low.
+This script performs a full or differential backup of the specified source directories to a backup location.
 
-## Configuration
-Before using this script, you should configure it according to your needs. Open the script and modify the following variables:
+## Parameters
 
-- `$sourceDirectories`: An array that should contain the paths of the directories you want to back up.
-- `$backupLocation`: The target location where backups will be stored. Make sure this is a valid path.
-- `$backupFrequency`: The number of days between full backups. Adjust this value to suit your backup strategy.
-
-## Usage
-To use the script:
-
-1. Run the script using PowerShell.
-2. It will create a unique backup folder within the specified `$backupLocation` with a timestamp.
-3. Check whether it's time for a full backup. The script does this by examining the last full backup's creation time (if available) and comparing it to the `$backupFrequency`.
-4. If a full backup is needed, the script will create a "FullBackup" folder and copy all the data from `$sourceDirectories` into it.
-5. If it's not time for a full backup, a differential backup will be performed in a "DifferentialBackup" folder.
-6. The script will clean up old backups when disk space is low. It checks for available free space and removes the oldest backups if necessary.
+- `$sourceDirectories`: An array of strings that contains the paths of the source directories to be backed up.
+- `$backupLocation`: A string that contains the path of the backup location where the backup folders will be created.
+- `$backupFrequency`: An integer that specifies the number of days between full backups. If the last full backup is older than this value, a new full backup will be performed. Otherwise, a differential backup will be performed.
+- `$maxFullBackups`: An integer that specifies the maximum number of full backups to keep. Older full backups will be deleted when this limit is reached.
 
 ## Functions
-- `FullBackup`: This function creates a "FullBackup" folder and performs a full backup of all specified source directories.
-- `DifferentialBackup`: This function creates a "DifferentialBackup" folder and performs a differential backup of the source directories.
-- `CleanUpBackups`: This function is used to clean up old backups when the disk space is running low.
+
+- `FullBackup`: This function creates a full backup of the source directories in a folder named with the current date and time and the suffix `_Full`. It uses the `Write-Host`, `Join-Path`, `New-Item`, and `Copy-Item` cmdlets to perform the backup operation.
+- `DifferentialBackup`: This function creates a differential backup of the source directories in a folder named with the current date and time and the suffix `_Diff`. It compares the last write time of the source files with the corresponding files in the latest full backup folder and copies only the changed or new files. It uses the `Write-Host`, `Join-Path`, `New-Item`, `Get-ChildItem`, `Test-Path`, `Get-Item`, and `Copy-Item` cmdlets to perform the backup operation.
+
+## Usage
+
+To run the script, you need to modify the parameter values according to your needs. Then, you can execute the script from a PowerShell console or schedule it as a task using the `Task Scheduler` tool.
