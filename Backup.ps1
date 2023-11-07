@@ -7,10 +7,25 @@ $maxFullBackups = 5
 function FullBackup {
     Write-Host "Initiating Full Backup..."
 
+    # Get the backup target object
+    $backupTarget = Get-WmiObject -Class Win32_LogicalDisk -Filter "DeviceID='$backupLocation'"
+
+    # Get the existing full backups
+    $fullBackups = Get-ChildItem -Path $backupLocation -Filter "*_Full" | Sort-Object LastWriteTime -Descending
+
+    # Check the number of full backups and the available disk space
+    if ($fullBackups.Count -ge $maxFullBackups -or $backupTarget.FreeSpace -lt $backupTarget.Size * 0.1) {
+        # Delete the oldest full backup
+        Write-Host "Deleting the oldest full backup: $($fullBackups[-1].Name)"
+        Remove-Item -Path $fullBackups[-1].FullName -Recurse -Force
+    }
+
+    # Create a new full backup folder
     $fullBackupFolder = Join-Path -Path $backupLocation -ChildPath ((Get-Date -Format "yyyyMMdd_HHmmss") + "_Full")
     Write-Host "Creating Full Backup Folder: $fullBackupFolder"
     New-Item -ItemType Directory -Path $fullBackupFolder -Force
 
+    # Copy the source directories to the full backup folder
     foreach ($sourceDirectory in $sourceDirectories) {
         Write-Host "Copying $sourceDirectory to $fullBackupFolder"
         Copy-Item -Path $sourceDirectory -Destination $fullBackupFolder -Recurse -ErrorAction Stop
