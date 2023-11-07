@@ -1,5 +1,5 @@
-﻿$sourceDirectories = @("C:\Files1", "C:\Files2")
-$backupLocation = "H:\Backups"
+﻿$sourceDirectories = @("C:\test1", "C:\test2")
+$backupLocation = "H:\Backups\test"
 $backupFrequency = 7
 $maxFullBackups = 5
 
@@ -38,30 +38,25 @@ function DifferentialBackup {
         Write-Host "Creating Differential Backup Folder: $diffBackupFolder"
         New-Item -ItemType Directory -Path $diffBackupFolder -Force
 
-    foreach ($sourceDirectory in $sourceDirectories) {
-        Write-Host "Checking changes in $sourceDirectory since the last full backup..."
-        $sourceFiles = Get-ChildItem -Path $sourceDirectory -File -Recurse
+        $sourceFiles = Get-ChildItem -Path $sourceDirectories -File -Recurse
 
         foreach ($file in $sourceFiles) {
-			$filePathWithoutDriveLetter = Split-Path -Path $file.FullName -NoQualifier
-			$lastFullBackupFile = Join-Path -Path $lastFullBackupPath -ChildPath $filePathWithoutDriveLetter
+            $filePathWithoutDriveLetter = Split-Path -Path $file.FullName -NoQualifier
+            $lastFullBackupFile = Join-Path -Path $lastFullBackupPath -ChildPath $filePathWithoutDriveLetter
 
-			Write-Host "Comparing $file to $lastFullBackupFile"
+            if (-not (Test-Path -Path $lastFullBackupFile) -or ($file.LastWriteTime -gt (Get-Item $lastFullBackupFile).LastWriteTime)) {
+                Write-Host "Detected change or new file: $file"
 
-            if ((Test-Path -Path $lastFullBackupFile) -and ($file.LastWriteTime -gt (Get-Item $lastFullBackupFile).LastWriteTime)) {
-                    Write-Host "Detected change in file: $file"
-					
-					$destinationPath = Join-Path -Path $diffBackupFolder -ChildPath $filePathWithoutDriveLetter
-                    $destinationDirectory = [System.IO.Path]::GetDirectoryName($destinationPath)
+                $destinationPath = Join-Path -Path $diffBackupFolder -ChildPath $filePathWithoutDriveLetter
+                $destinationDirectory = [System.IO.Path]::GetDirectoryName($destinationPath)
 
-                    if (-not (Test-Path -Path $destinationDirectory)) {
-                        Write-Host "Creating directory: $destinationDirectory"
-                        New-Item -ItemType Directory -Path $destinationDirectory -Force
-                    }
-
-                    Write-Host "Copying $file to $destinationPath"
-                    Copy-Item -Path $file.FullName -Destination $destinationPath -ErrorAction Stop
+                if (-not (Test-Path -Path $destinationDirectory)) {
+                    Write-Host "Creating directory: $destinationDirectory"
+                    New-Item -ItemType Directory -Path $destinationDirectory -Force
                 }
+
+                Write-Host "Copying $file to $destinationPath"
+                Copy-Item -Path $file.FullName -Destination $destinationPath -ErrorAction Stop
             }
         }
 
