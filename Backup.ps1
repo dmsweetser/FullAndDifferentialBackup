@@ -1,54 +1,85 @@
-﻿# Configuration
-$sourceDirectories = @("C:\Files1", "C:\Files2")  # List of source directories to back up
-$backupLocation = "H:\Backups"  # Updated target location for backups
-$backupFrequency = 7  # Days between full backups
-$maxFullBackups = 5    # Maximum number of full backups to keep
+﻿$sourceDirectories = @("C:\Files1", "C:\Files2")
+$backupLocation = "H:\Backups"
+$backupFrequency = 7
+$maxFullBackups = 5
 
-# Function to create a full backup
+# Full Backup Function
 function FullBackup {
+    Write-Host "Initiating Full Backup..."
+
     $fullBackupFolder = Join-Path -Path $backupLocation -ChildPath ((Get-Date -Format "yyyyMMdd_HHmmss") + "_Full")
+    Write-Host "Creating Full Backup Folder: $fullBackupFolder"
     New-Item -ItemType Directory -Path $fullBackupFolder -Force
-    Copy-Item -Path $sourceDirectories -Destination $fullBackupFolder -Recurse
+
+    foreach ($sourceDirectory in $sourceDirectories) {
+        Write-Host "Copying $sourceDirectory to $fullBackupFolder"
+        Copy-Item -Path $sourceDirectory -Destination $fullBackupFolder -Recurse -ErrorAction Stop
+    }
+
+    Write-Host "Full Backup Completed."
 }
 
-# Function to create a differential backup
+# Differential Backup Function
 function DifferentialBackup {
-    $fullBackups = Get-ChildItem -Path $backupLocation -Filter "*_Full" | Sort-Object CreationTime
-    $lastFullBackup = $fullBackups | Select-Object -Last 1
+    param (
+        [string]$lastFullBackupPath
+    )
+
+    Write-Host "Initiating Differential Backup..."
+
+    $fullBackups = Get-ChildItem -Path $backupLocation -Filter "*_Full" | Sort-Object LastWriteTime -Descending
+    $lastFullBackup = $fullBackups | Select-Object -First 1
+
     if ($lastFullBackup -ne $null) {
+        $lastFullBackupPath = $lastFullBackup.FullName
+        Write-Host "Latest Full Backup Found: $lastFullBackupPath"
+
         $diffBackupFolder = Join-Path -Path $backupLocation -ChildPath ((Get-Date -Format "yyyyMMdd_HHmmss") + "_Diff")
+        Write-Host "Creating Differential Backup Folder: $diffBackupFolder"
         New-Item -ItemType Directory -Path $diffBackupFolder -Force
-        $differentialItems = Compare-Object -ReferenceObject (Get-ChildItem -Path $sourceDirectories -File) -DifferenceObject (Get-ChildItem -Path $lastFullBackup.FullName -File)
-        $differentialItems | ForEach-Object {
-            $sourcePath = $_.InputObject.FullName
-            $relativePath = $sourcePath.Substring($sourcePath.IndexOf($lastFullBackup.FullName) + $lastFullBackup.FullName.Length + 1)
-            $destinationPath = Join-Path -Path $diffBackupFolder -ChildPath $relativePath
-            Copy-Item -Path $sourcePath -Destination $destinationPath
+
+    foreach ($sourceDirectory in $sourceDirectories) {
+        Write-Host "Checking changes in $sourceDirectory since the last full backup..."
+        $sourceFiles = Get-ChildItem -Path $sourceDirectory -File -Recurse
+
+        foreach ($file in $sourceFiles) {
+			$filePathWithoutDriveLetter = Split-Path -Path $file.FullName -NoQualifier
+			$lastFullBackupFile = Join-Path -Path $lastFullBackupPath -ChildPath $filePathWithoutDriveLetter
+
+			Write-Host "Comparing $file to $lastFullBackupFile"
+
+            if ((Test-Path -Path $lastFullBackupFile) -and ($file.LastWriteTime -gt (Get-Item $lastFullBackupFile).LastWriteTime)) {
+                    Write-Host "Detected change in file: $file"
+					
+					$destinationPath = Join-Path -Path $diffBackupFolder -ChildPath $filePathWithoutDriveLetter
+                    $destinationDirectory = [System.IO.Path]::GetDirectoryName($destinationPath)
+
+                    if (-not (Test-Path -Path $destinationDirectory)) {
+                        Write-Host "Creating directory: $destinationDirectory"
+                        New-Item -ItemType Directory -Path $destinationDirectory -Force
+                    }
+
+                    Write-Host "Copying $file to $destinationPath"
+                    Copy-Item -Path $file.FullName -Destination $destinationPath -ErrorAction Stop
+                }
+            }
         }
+
+        Write-Host "Differential Backup Completed."
+    } else {
+        Write-Host "No full backup found. Cannot perform a differential backup."
     }
 }
 
-# Function to clean up old backups if they exceed the maximum number of full backups
-function CleanUpBackups {
-    $fullBackups = Get-ChildItem -Path $backupLocation -Filter "*_Full" | Sort-Object CreationTime
-    $excessFullBackups = $fullBackups | Select-Object -Skip $maxFullBackups
-    $excessFullBackups | ForEach-Object {
-        Remove-Item -Path $_.FullName -Recurse -Force
-    }
-}
+# Check for the last full backup
+$fullBackups = Get-ChildItem -Path $backupLocation -Filter "*_Full" | Sort-Object LastWriteTime -Descending
+$lastFullBackup = $fullBackups | Select-Object -First 1
 
-# Check if it's time for a full backup or differential backup
-$fullBackups = Get-ChildItem -Path $backupLocation -Filter "*_Full" | Sort-Object CreationTime
-$lastFullBackup = $fullBackups | Select-Object -Last 1
-if ($lastFullBackup -eq $null) {
+# Check for conditions to perform a full or differential backup
+if ($lastFullBackup -eq $null -or (Get-Date).Subtract($lastFullBackup.LastWriteTime).TotalDays -ge $backupFrequency) {
+    Write-Host "Performing Full Backup..."
     FullBackup
 } else {
-    $lastFullBackupTime = $lastFullBackup.CreationTime
-    $daysSinceLastFullBackup = [math]::Round((Get-Date - $lastFullBackupTime).TotalDays)  # Calculate the days difference
-    if ($daysSinceLastFullBackup -ge $backupFrequency) {
-        FullBackup
-        CleanUpBackups
-    } else {
-        DifferentialBackup
-    }
+    Write-Host "Performing Differential Backup..."
+    DifferentialBackup $lastFullBackup.FullName
 }

@@ -1,4 +1,4 @@
-## PowerShell Backup
+# PowerShell Backup
 
 ## Overview
 This PowerShell script is designed to create and manage backups of specified source directories. It provides options for full and differential backups, ensuring your data is secure and retrievable. Additionally, it includes a cleanup mechanism to manage disk space when it's running low.
