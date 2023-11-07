@@ -8,7 +8,7 @@ function FullBackup {
     Write-Host "Initiating Full Backup..."
 
     # Get the backup target object
-    $backupTarget = Get-WmiObject -Class Win32_LogicalDisk -Filter "DeviceID='$backupLocation'"
+    $backupTarget = Get-WmiObject -Class Win32_LogicalDisk -Filter "DeviceID='$($backupLocation.Substring(0,2))'"
 
     # Get the existing full backups
     $fullBackups = Get-ChildItem -Path $backupLocation -Filter "*_Full" | Sort-Object LastWriteTime -Descending
