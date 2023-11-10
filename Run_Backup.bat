@@ -1,1 +1,0 @@
-powershell.exe -ExecutionPolicy Unrestricted -File .\Backup.ps1
