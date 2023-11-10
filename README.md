@@ -1,19 +1,45 @@
-# PowerShell Backup Script
+# Full and Differential Backup
 
-This script performs a full or differential backup of the specified source directories to a backup location.
+This script performs full and differential backups of specified directories, handling potential "Access Denied" errors gracefully by moving on to the next file.
 
-## Parameters
+## Table of Contents
 
-- `$sourceDirectories`: An array of strings that contains the paths of the source directories to be backed up.
-- `$backupLocation`: A string that contains the path of the backup location where the backup folders will be created.
-- `$backupFrequency`: An integer that specifies the number of days between full backups. If the last full backup is older than this value, a new full backup will be performed. Otherwise, a differential backup will be performed.
-- `$maxFullBackups`: An integer that specifies the maximum number of full backups to keep. Older full backups will be deleted when this limit is reached.
+- [Overview](#overview)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Logging](#logging)
+- [Error Handling](#error-handling)
 
-## Functions
+## Overview
 
-- `FullBackup`: This function creates a full backup of the source directories in a folder named with the current date and time and the suffix `_Full`. It uses the `Write-Host`, `Join-Path`, `New-Item`, and `Copy-Item` cmdlets to perform the backup operation.
-- `DifferentialBackup`: This function creates a differential backup of the source directories in a folder named with the current date and time and the suffix `_Diff`. It compares the last write time of the source files with the corresponding files in the latest full backup folder and copies only the changed or new files. It uses the `Write-Host`, `Join-Path`, `New-Item`, `Get-ChildItem`, `Test-Path`, `Get-Item`, and `Copy-Item` cmdlets to perform the backup operation.
+The backup script is designed to create full and differential backups of specified source directories to a destination directory. It uses a logging system to capture information about the backup process.
 
 ## Usage
 
-To run the script, you need to modify the parameter values according to your needs. Then, you can execute the script from a PowerShell console or schedule it as a task using the `Task Scheduler` tool.
+To use the script, follow these steps:
+
+1. Modify the `source_directories`, `destination_directory`, and `retention_count` variables in the `if __name__ == "__main__":` block according to your requirements.
+
+2. Run the script by executing the following command in your terminal:
+
+    ```bash
+    python script_name.py
+    ```
+
+Replace `script_name.py` with the actual name of your Python script.
+
+## Configuration
+
+- `source_directories`: List of source directories to be backed up.
+- `destination_directory`: The directory where backups will be stored.
+- `retention_count`: The number of backups to retain. Older backups will be removed.
+
+## Logging
+
+The script utilizes Python's `logging` module to capture information about the backup process. The logs are written to a file named `backup.log` in the destination directory.
+
+## Error Handling
+
+The script includes error handling to gracefully manage "Access Denied" errors or other exceptions during the backup process. In case of an error, the script logs the details and continues with the backup for other files.
+
+Feel free to customize the script further to suit your specific needs.
