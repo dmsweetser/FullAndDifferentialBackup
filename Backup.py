@@ -1,9 +1,10 @@
-# Bing made this
+# Built in collaboration with generative AI
 
 import os
 import shutil
 import logging
 from datetime import datetime
+import time
 
 def configure_logging(destination_dir):
     log_file = os.path.join(destination_dir, 'backup.log')
@@ -24,19 +25,37 @@ def create_full_backup(source_dir, destination_dir):
         logging.error(f"Error creating full backup: {str(e)}")
         logging.warning(f"Skipping {source_dir} due to error.")
 
+def should_copy(file_path, last_full_backup):
+    destination_file_path = os.path.join(last_full_backup, os.path.relpath(file_path))
+
+    # Ensure the destination directory exists
+    destination_dir = os.path.dirname(destination_file_path)
+    if not os.path.exists(destination_dir):
+        os.makedirs(destination_dir)
+
+    return not os.path.exists(destination_file_path) or os.path.getmtime(file_path) > os.path.getmtime(destination_file_path)
+
 def create_differential_backup(source_dir, last_full_backup, destination_dir):
     backup_time = datetime.now().strftime("%Y%m%d%H%M%S")
     source_dir_name = os.path.basename(os.path.normpath(source_dir))
     backup_folder = os.path.join(destination_dir, f"differential_backup_{source_dir_name}_{backup_time}")
 
-    logging.info(f"Creating differential backup of {source_dir} to {backup_folder}")
+    logging.info(f"Creating differential backup directory structure of {source_dir} to {backup_folder}")
 
-    # Function to determine if a file should be copied to the differential backup
-    def should_copy(file_path):
-        file_modification_time = os.path.getmtime(file_path)
-        return not os.path.exists(os.path.join(last_full_backup, os.path.relpath(file_path))) or file_modification_time > os.path.getmtime(os.path.join(last_full_backup, os.path.relpath(file_path)))
+    try:
+        for root, dirs, _ in os.walk(source_dir):
+            for directory in dirs:
+                dir_path = os.path.join(root, directory)
+                relative_path = os.path.relpath(dir_path, source_dir)
+                destination_dir_path = os.path.join(backup_folder, relative_path)
+                os.makedirs(destination_dir_path, exist_ok=True)
 
-    # Copy files to the differential backup
+        logging.info("Differential backup directory structure created successfully")
+    except Exception as e:
+        logging.error(f"Error creating differential backup directory structure: {str(e)}")
+        logging.warning(f"Skipping {source_dir} due to error.")
+
+    # Now, copy only the changed files
     for root, _, files in os.walk(source_dir):
         for file in files:
             file_path = os.path.join(root, file)
@@ -44,7 +63,7 @@ def create_differential_backup(source_dir, last_full_backup, destination_dir):
             destination_file_path = os.path.join(backup_folder, relative_path)
 
             try:
-                if should_copy(file_path):
+                if should_copy(file_path, last_full_backup):
                     logging.info(f"Copying {file_path} to {destination_file_path}")
                     shutil.copy2(file_path, destination_file_path)
             except Exception as e:
@@ -68,22 +87,35 @@ def remove_oldest_backup(destination_dir, retain_count):
 
         backups = backups[1:]
 
-def perform_backup(source_dirs, destination_dir, retain_count):
-    # Ensure destination directory exists
+def should_create_full_backup(destination_dir, full_backup_interval_days):
+    full_backups = [f for f in os.listdir(destination_dir) if f.startswith("full_backup")]
+    
+    if not full_backups:
+        return True  # No full backup exists
+
+    last_full_backup_time = os.path.getctime(os.path.join(destination_dir, max(full_backups)))
+    current_time = time.time()
+
+    # Convert days to seconds
+    interval_seconds = full_backup_interval_days * 24 * 60 * 60
+
+    return current_time - last_full_backup_time > interval_seconds
+
+def perform_backup(source_dirs, destination_dir, retain_count, full_backup_interval_days):
     if not os.path.exists(destination_dir):
         os.makedirs(destination_dir)
 
     configure_logging(destination_dir)
 
     for source_dir in source_dirs:
-        # Check if a full backup already exists
-        full_backups = [f for f in os.listdir(destination_dir) if f.startswith(f"full_backup_{os.path.basename(os.path.normpath(source_dir))}")]
-        
-        if full_backups:
-            last_full_backup = os.path.join(destination_dir, max(full_backups))
-            create_differential_backup(source_dir, last_full_backup, destination_dir)
-        else:
+        if should_create_full_backup(destination_dir, full_backup_interval_days):
             create_full_backup(source_dir, destination_dir)
+        else:
+            full_backups = [f for f in os.listdir(destination_dir) if f.startswith(f"full_backup_{os.path.basename(os.path.normpath(source_dir))}")]
+            
+            if full_backups:
+                last_full_backup = os.path.join(destination_dir, max(full_backups))
+                create_differential_backup(source_dir, last_full_backup, destination_dir)
 
     remove_oldest_backup(destination_dir, retain_count)
 
@@ -91,5 +123,6 @@ if __name__ == "__main__":
     source_directories = ["C:\\Files1", "C:\\Files2"]
     destination_directory = "H:\\Backups"
     retention_count = 7
+    full_backup_interval_days = 14
 
-    perform_backup(source_directories, destination_directory, retention_count)
+    perform_backup(source_directories, destination_directory, retention_count, full_backup_interval_days)
