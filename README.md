@@ -24,6 +24,7 @@ if __name__ == "__main__":
     full_backup_interval_days = 14
 
     perform_backup(source_directories, destination_directory, retention_count, full_backup_interval_days)
+```
 
 ## Dependencies
 - Python 3.x
