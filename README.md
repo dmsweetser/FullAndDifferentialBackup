@@ -1,4 +1,5 @@
 # Full and Differential Backup
+_Built in collaboration with generative AI_
 
 ## Overview
 This is a Python script for creating and managing full and differential backups of specified source directories. The script is designed to run periodically to ensure data integrity and minimize storage usage. It performs full backups at a defined interval and creates differential backups for the changes between full backups.
