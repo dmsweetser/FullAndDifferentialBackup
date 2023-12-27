@@ -16,7 +16,7 @@ This script is designed to create full, differential, and incremental backups of
 10. [Running the Script](#running-the-script)
 
 ## Prerequisites
-- Python 3.x
+- Python 3.12
 - Access to the source directories and destination directory
 - Required permissions to read, write, and create directories in the specified paths
 
